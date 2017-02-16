@@ -1,8 +1,8 @@
 equipment = {
         'ion': {'damage': 1, 'power': -1},
         'plasma': {'damage': 2, 'power': -2},
-        'antimmatter' : {'damage': 4, 'power': -3},
-        'rocket' : {'damage':2, 'shots': 2, 'firststrike': True},
+        'antimatter' : {'damage': 4, 'power': -3},
+        'rocket' : {'damage':2, 'shots': 2, 'first_strike': True},
         'armor1' : {'armor': 1},
         'armor2' : {'armor': 2},
         'computer1' : {'aim': 1},
@@ -70,15 +70,14 @@ class ship():
         return self._sum('armor')
 
     @property
-    def first_strike(self):
-        # for now, only rockets have first strike
-        if 'rocket' in self.equip:
-            return True
-        else:
-            return False
+    def has_first_strike(self):
+        for e in self.equip:
+            if 'first_strike' in equipment[e]:
+                return True
+        return False
 
     @property
-    def has_weapons(self):
+    def has_beam_weapons(self):
         if 'ion' in self.equip and self.equip['ion'] > 0:
             return True
         if 'plasma' in self.equip and self.equip['plasma'] > 0:
@@ -87,6 +86,14 @@ class ship():
             return True
         return False
 
+    @property
+    def has_weapons(self):
+        if not self.has_first_strike and not self.has_beam_weapons:
+            return False
+        else:
+            return True
+
+
     def validate(self):
         if self.power < 0:
             raise ValueError("Ship consumes too much power: %d"%self.power)
@@ -94,23 +101,23 @@ class ship():
 class interceptor(ship):
     def __init__(self, n=1, validate=False, default=False, **kwargs):
         if default:
-            ship.__init__(self, n, validate, ini=2, ion=1, engine1=1)
+            ship.__init__(self, n, validate, ini=2, ion=1, engine1=1, generator1=1)
         else:
             ship.__init__(self, n, validate, ini=2, **kwargs)
 
 class cruiser(ship):
     def __init__(self, n=1, validate=False, default=False, **kwargs):
         if default:
-            ship.__init__(self, n, validate, ini=1, ion=1, computer1=1, armor1=1, engine1=1)
+            ship.__init__(self, n, validate, ini=1, ion=1, computer1=1, armor1=1, engine1=1, generator1=1)
         else:
             ship.__init__(self, n, validate, ini=1, **kwargs)
 
 class dreadnought(ship):
     def __init__(self, n=1, validate=False, default=False, **kwargs):
         if default:
-            ship.__init__(self, n, validate, ini=1, ion=2, computer1=1, armor1=2, engine1=1)
+            ship.__init__(self, n, validate, ion=2, computer1=1, armor1=2, engine1=1, generator1=1)
         else:
-            ship.__init__(self, n, validate, ini=1, **kwargs)
+            ship.__init__(self, n, validate, **kwargs)
 
 class base(ship):
     def __init__(self, n=1, validate=False, default=False, **kwargs):
@@ -124,7 +131,7 @@ class ancient(ship):
         ship.__init__(self, n, validate, ini=2, ion=2, computer1=1, armor1=1)
 
 class gc(ship):
-    def __init__(self, n=1, validate=False, **kwargs):
+    def __init__(self, n=1, validate=False, default=True, **kwargs):
         ship.__init__(self, n, validate, ion=4, computer1=1, armor1=7)
 
 class fleet():
@@ -137,7 +144,7 @@ class fleet():
     def __len__(self):
         return len(self.ships)
 
-    def __iadd(self, ship):
+    def __iadd__(self, ship):
         self.ships.append(ship)
         return self
 
@@ -222,16 +229,16 @@ class battle():
         max_loop = 1000
       
         if ain > din:
-            if self.at.first_strike:
+            if self.at.has_first_strike:
                 self.do_first_strikes(self.at, self.de)
                 if self.de.n <= 0:
                     return self.at.n
-            if self.de.first_strike:
+            if self.de.has_first_strike:
                 self.do_first_strikes(self.de, self.at)
                 if self.at.n <= 0:
                     return -self.de.n
 
-            if not self.at.has_weapons and not self.de.has_weapons:
+            if not self.at.has_beam_weapons and not self.de.has_beam_weapons:
                 return -self.de.n
 
             for i in range(max_loop):
@@ -244,11 +251,11 @@ class battle():
             return -self.de.n
 
         if ain < din:
-            if self.de.first_strike:
+            if self.de.has_first_strike:
                 self.do_first_strikes(self.de, self.at)
                 if self.at.n <= 0:
                     return -1
-            if self.at.first_strike:
+            if self.at.has_first_strike:
                 self.do_first_strikes(self.at, self.de)
                 if self.de.n <= 0:
                     return 1
@@ -267,11 +274,11 @@ class battle():
 
         if ain == din:
             self.de.nnn = self.de.n
-            if self.at.first_strike:
+            if self.at.has_first_strike:
                 self.do_first_strikes(self.at, self.de)
             temp = self.de.n
             self.de.n = self.de.nnn
-            if self.de.first_strike:
+            if self.de.has_first_strike:
                 self.do_first_strikes(self.de, self.at)
             self.de.n = temp
 
